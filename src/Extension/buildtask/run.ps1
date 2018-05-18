@@ -14,8 +14,8 @@ try {
     [string]$jsonMapping = Get-VstsInput -Name jsonMapping  
     [string]$inputType = Get-VstsInput -Name inputType
     if($inputType -eq "file"){
-              $jsonMapping = Get-VstsInput -Name jsonMappingFile
-              Write-host "Using file $jsonMapping for JSON mapping"
+        $jsonMapping = Get-VstsInput -Name jsonMappingFile
+        Write-host "Using file $jsonMapping for JSON mapping"
     }
     else
     {
@@ -24,10 +24,11 @@ try {
         Write-host "-----------------------"
         Write-host `"$jsonMapping`"
     }
-
-    
+    [string]$projectName = Get-VstsInput -Name projectName
+    if($projectName -eq ""){
+        $projectName = (Get-VstsTaskVariableInfo | Where-Object { $_.Name -eq "build.Repository.name"}).Value
+    }
     $vsoAccountName = (Get-VstsTaskVariableInfo | Where-Object { $_.Name -eq "system.taskDefinitionsUri"}).Value
-    $projectName = (Get-VstsTaskVariableInfo | Where-Object { $_.Name -eq "build.Repository.name"}).Value
 
     Write-host "-----------------------"
     Write-host "Config"
@@ -46,7 +47,7 @@ try {
     Write-host "Creation of dynamic .NET DLL using ROSLYN..."
     Write-host "-------------------------------------------------"
 
-    Invoke-VstsTool -FileName ".\Microsoft.DX.JavaTestBridge.UnitTestGenerator.exe" -Arguments "AutomatedTestAssembly `"$jsonMapping`" $testResultPath" -RequireExitCodeZero
+    Invoke-VstsTool -FileName ".\UnitTestGenerator\Microsoft.DX.JavaTestBridge.UnitTestGenerator.exe" -Arguments "AutomatedTestAssembly `"$jsonMapping`" $testResultPath" -RequireExitCodeZero
     
     if($LASTEXITCODE -eq 0){
 
@@ -55,15 +56,15 @@ try {
         Write-host "Association of tests with VSTS..."
         Write-host "-------------------------------------------------"
 
-        Invoke-VstsTool -FileName ".\Microsoft.DX.JavaTestBridge.VSTS.exe" -Arguments "$vsoAccountName $projectName AutomatedTestAssembly.dll $username $password" -RequireExitCodeZero
+        Invoke-VstsTool -FileName ".\VSTS\Microsoft.DX.JavaTestBridge.VSTS.exe" -Arguments "$vsoAccountName $projectName AutomatedTestAssembly.dll $username $password" -RequireExitCodeZero
         if($LASTEXITCODE -eq 0)
         {
           Write-host "Association completed successfully"
          
           #required DLL to run
           Move-Item .\AutomatedTestAssembly.dll $outputFolder -Force
-          Copy-Item .\Newtonsoft.Json.dll $outputFolder -Force
-          Copy-Item .\Microsoft.DX.JavaTestBridge.Common.dll $outputFolder -Force
+          Copy-Item .\VSTS\Newtonsoft.Json.dll $outputFolder -Force
+          Copy-Item .\VSTS\Microsoft.DX.JavaTestBridge.Common.dll $outputFolder -Force
 
           Write-host "Files copied to $outputFolder"
         }
